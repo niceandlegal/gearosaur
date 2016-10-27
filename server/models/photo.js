@@ -30,36 +30,64 @@ var photoSchema = new Schema({
   can_comment: Number,
   tags: {
     count: Number
-  }
+  },
+  deleted: { 
+    type: Boolean, 
+    default: false 
+  },
 });
 
 // Save bunch of photos.
 photoSchema.statics.saveMany = function(photos) {
-  let newPhotos = []; 
+  let newPhotos = [],
+      oldPhotos = [],
+      numberOfUpdatedPhotos = 0;
 
-  return Promise.all(photos.map((vkPhoto) => {
-    return new Promise((resolve, reject) => {
-      // Check if this photo already exists in DB.
-      this.findOne({id: vkPhoto.id}).then((photo) => {
-        // Nope, it's a new photo. Push it into array of new photos.
-        if (photo == null) {
-          newPhotos.push(vkPhoto);
-          resolve();
-        }
-        // Photo exists, update and save it.
-        else {
-          photo = _.merge(photo, vkPhoto);
-          photo.save().then(() => { resolve(); });
-        }
-      })
-    })
-  }))
+  // Ids of photos to save
+  let ids = photos.map(photo => photo.id);
+
+  // Ids of albums of photos to save
+  let albumIds = _.uniq(photos.map(photo => photo.album_id));
+
+  return this.find({album_id: { $in: albumIds }}, {id: 1, _id: 0}).then(idObjects => {    
+    // Ids from DB
+    let dbIds = idObjects.map(idObject => idObject.id);
+    // Ids of new photos, which are not in DB yet
+    let newIds = _.difference(ids, dbIds);    
+    // Ids of old photos, which should be updated
+    let oldIds = _.difference(ids, newIds);
+    // New photos
+    newPhotos = photos.filter(photo => newIds.includes(photo.id));
+    // Old photos
+    oldPhotos = photos.filter(photo => oldIds.includes(photo.id));
+  })
   .then(() => {
-    console.log('newPhotos.length', newPhotos.length);
+    // Update existing photos
+    return Promise.all(oldPhotos.map(vkPhoto => {
+      // Update only these fields.
+      let setObj = {
+        text: vkPhoto.text,
+        likes: vkPhoto.likes,
+        comments: vkPhoto.comments,
+        tags: vkPhoto.tags
+      }
+
+      return this.update({id: vkPhoto.id}, {$set: setObj}).then(() => {
+        numberOfUpdatedPhotos++;
+      })
+    }))
+  })
+  .then(() => {
     // Insert all new photos into DB. It's faster this way.
     if (newPhotos.length > 0) {
       return this.insertMany(newPhotos).then(() => {});
     }    
+  })
+  .then(() => {
+    return { 
+      numberOfUpdatedPhotos, 
+      numberOfNewPhotos: newPhotos.length
+    }
   })
 }
 
