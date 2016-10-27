@@ -3,6 +3,7 @@
 var mongoose = require('mongoose');
 
 import { getAllAlbums } from './albums.js';
+import { getAllPhotos } from './photos.js';
 import { mongo_login, mongo_pass } from './secrets.js';
 
 // -------------------
@@ -18,7 +19,13 @@ db.once('open', (callback) => {
   console.log('MongoDB connection success');  
   getAllAlbums()
   .tap(() => {
-    console.log('Albums were stolen');
+    console.log('\nAlbums were stolen');
+  })
+  .then(() => {
+    return getAllPhotos();
+  })
+  .tap(() => {
+    console.log('\nPhotos were stolen')
   })
   .then(() => {
     let end = new Date();
