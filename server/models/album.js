@@ -40,16 +40,18 @@ albumSchema.statics.saveMany = function(albums) {
       })
     })
   }))
-  .then(() => {
+  .then(() => {   
     if (newAlbums.length > 0) {
       return this.insertMany(newAlbums).then(() => {
         newAlbums.forEach((album) => {
           console.log(`Album "${album.title}" (${album.id}) is saved`);
         });
       });
-    }
-    console.log(`Number of updated albums: ${numberOfUpdatedAlbums}`);
-    console.log(`Number of new albums: ${newAlbums.length}`);
+    }    
+  })
+  .then(() => {
+    console.log(`\nNumber of updated albums: ${numberOfUpdatedAlbums}`);
+    console.log(`Number of new albums: ${newAlbums.length}`);  
   })
 }
 
